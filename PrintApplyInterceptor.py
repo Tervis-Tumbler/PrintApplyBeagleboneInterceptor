@@ -3,11 +3,11 @@ import time # for timestamp and sleep functions.
 from bbio import * # for BeagleBone Black pin functions.
 
 # External connections
-boxSensorPin = GPIO1_2 # pin P8.5
-applicatorHomePositionSensor = GPIO1_3 # pin P8.6
-randomStrokeDelayOutputPin = GPIO1_13 # pin P8.11
-redLED = GPIO1_6      # pin P8.3
-yellowLED = GPIO1_7    # pin P9.4
+boxSensorPin = GPIO2_12 # pin P8.39
+applicatorHomePositionSensor = GPIO2_13 # pin P8.40
+randomStrokeDelayOutputPin = GPIO2_10 # pin P8.41
+redLED = GPIO2_11 # pin P8.42
+yellowLED = GPIO2_8 # pin P8.43
 
 # Variables
 accelerometerCurveArea = 0
@@ -19,11 +19,51 @@ maxVelocityToCalculate = 37500
 maxRandomStrokeDelayTime = 145
 minRandomStrokeDelayTime = 50
 
+# Pin Setup
 pinMode(applicatorHomePositionSensor,INPUT,1)
 pinMode(boxSensorPin,INPUT,1)
 pinMode(randomStrokeDelayOutputPin,OUTPUT)
 pinMode(redLED,OUTPUT)
 pinMode(yellowLED,OUTPUT)
+
+def calculateRandomStrokeDelay(velocity):
+    if (velocity < minVelocityToCalculate):
+        return maxRandomStrokeDelayTime
+    elif (velocity > minVelocityToCalculate) and (velocity < maxVelocityToCalculate):
+        return (velocity - minVelocityToCalculate) * (minRandomStrokeDelayTime - maxRandomStrokeDelayTime) / (maxVelocityToCalculate - minVelocityToCalculate) + maxRandomStrokeDelayTime 
+    else:
+        return minRandomStrokeDelayTime
+
+def printStatus(randomStrokeDelay, accelerometerCurveArea):
+    print "JSON STUFF"
+    
+def isApplicatorMoving():
+    if(digitalRead(applicatorHomePositionSensor)):
+        digitalWrite(yellowLED,HIGH)
+        return True
+    else:
+        return False
+
+def boxDetected():
+    if (digitalRead(boxSensorPin)):
+        return False
+    else:
+        return True
+        
+def sendRandomStrokeDelaySignal():
+    digitalWrite(redLED,HIGH)
+    delay(randomStrokeDelay)
+    digitalWrite(randomStrokeDelayOutputPin,HIGH)
+    delay(cycleDelay)
+    digitalWrite(yellowLED,LOW)
+    digitalWrite(redLED,LOW)
+    digitalWrite(randomStrokeDelayOutputPin,LOW)
+    
+def printSettings():
+    print ("\nMinimum Velocity: " + str(minVelocityToCalculate)) 
+    print ("\nMaximum Velocity: " + str(maxVelocityToCalculate))
+    print ("\nMinimum Delay Time: " + str(minRandomStrokeDelayTime))
+    print ("\nMaximum Delay Time: " + str(maxRandomStrokeDelayTime) + "\n")
 
 # Initialize SPI communication with the ADXL345.
 def initiateADXL345():
@@ -124,13 +164,15 @@ spi = initiateADXL345()
 
 
 def setup() :# Set up pin values and properties.
-    pass
+    
 
 
 def loop():
     digitalWrite(yellowLED,HIGH)
     print(getData(spi)[0]['z'])
+    delay(5)
     digitalWrite(yellowLED,LOW)
+    
     
     
 run(setup,loop)
