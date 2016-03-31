@@ -1,3 +1,5 @@
+print("Starting...\n")
+
 from periphery import SPI # for SPI functions
 import time # for timestamp and sleep functions.
 from bbio import * # for BeagleBone Black pin functions.
@@ -10,6 +12,7 @@ redLED = GPIO2_11 # pin P8.42
 yellowLED = GPIO2_8 # pin P8.43
 
 # Variables
+global accelerometerCurveArea 
 accelerometerCurveArea = 0
 accelerometerSampleDelay = 5
 cycleDelay = 2000
@@ -35,7 +38,8 @@ def calculateRandomStrokeDelay(velocity):
         return minRandomStrokeDelayTime
 
 def printStatus(randomStrokeDelay, accelerometerCurveArea):
-    print "JSON STUFF"
+    print ("Random Stroke Delay: " + str(randomStrokeDelay) + " ms")
+    print ("Velocity: " + str(accelerometerCurveArea) + "\n")
     
 def isApplicatorMoving():
     if(digitalRead(applicatorHomePositionSensor)):
@@ -60,10 +64,10 @@ def sendRandomStrokeDelaySignal():
     digitalWrite(randomStrokeDelayOutputPin,LOW)
     
 def printSettings():
-    print ("\nMinimum Velocity: " + str(minVelocityToCalculate)) 
-    print ("\nMaximum Velocity: " + str(maxVelocityToCalculate))
-    print ("\nMinimum Delay Time: " + str(minRandomStrokeDelayTime))
-    print ("\nMaximum Delay Time: " + str(maxRandomStrokeDelayTime) + "\n")
+    print ("Minimum Velocity: " + str(minVelocityToCalculate)) 
+    print ("Maximum Velocity: " + str(maxVelocityToCalculate))
+    print ("Minimum Delay Time: " + str(minRandomStrokeDelayTime))
+    print ("Maximum Delay Time: " + str(maxRandomStrokeDelayTime) + "\n")
 
 # Initialize SPI communication with the ADXL345.
 def initiateADXL345():
@@ -164,15 +168,30 @@ spi = initiateADXL345()
 
 
 def setup() :# Set up pin values and properties.
-    
+    printSettings()
+    print ("Ready!\n")
+    print ("Waiting...")
 
 
 def loop():
-    digitalWrite(yellowLED,HIGH)
-    print(getData(spi)[0]['z'])
-    delay(5)
-    digitalWrite(yellowLED,LOW)
+    if isApplicatorMoving():
+        print ("Collecting accelerometer data...")
+        while (not boxDetected()):
+            delay(accelerometerSampleDelay)
+            global accelerometerCurveArea 
+            accelerometerCurveArea = (accelerometerCurveArea + (((getData(spi)[0]['z']*-1)+250) * accelerometerSampleDelay))
+            
+        print ("Box detected!")
+        global randomStrokeDelay 
+        randomStrokeDelay = calculateRandomStrokeDelay(accelerometerCurveArea)
+        printStatus(randomStrokeDelay,accelerometerCurveArea)
+        sendRandomStrokeDelaySignal()
+        # global accelerometerCurveArea
+        accelerometerCurveArea = 0
+        print ("Waiting")
     
-    
+    else:
+        delay(1)
+        # print ("Current Z: " + str(getData(spi)[0]['z']))
     
 run(setup,loop)
